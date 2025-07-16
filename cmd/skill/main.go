@@ -4,8 +4,9 @@ package main
 import (
 	"net/http"
 
-	"github.com/KurepinVladimir/alice-skill/internal/logger"
 	"go.uber.org/zap"
+
+	"github.com/kurepinvladimir/alice-skill/internal/logger"
 )
 
 // функция main вызывается автоматически при запуске приложения
