@@ -2,8 +2,13 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
 	"net/http"
+
+	"go.uber.org/zap"
+
+	"github.com/kurepinvladimir/alice-skill/internal/logger"
+	"github.com/kurepinvladimir/alice-skill/internal/models"
 )
 
 // функция main вызывается автоматически при запуске приложения
@@ -18,27 +23,59 @@ func main() {
 
 // функция run будет полезна при инициализации зависимостей сервера перед запуском
 func run() error {
-	fmt.Println("Running server on", flagRunAddr)
-	return http.ListenAndServe(flagRunAddr, http.HandlerFunc(webhook))
+	if err := logger.Initialize(flagLogLevel); err != nil {
+		return err
+	}
+
+	////fmt.Println("Running server on", flagRunAddr)
+	logger.Log.Info("Running server", zap.String("address", flagRunAddr))
+
+	// оборачиваем хендлер webhook в middleware с логированием
+	////return http.ListenAndServe(flagRunAddr, http.HandlerFunc(webhook))
+	return http.ListenAndServe(flagRunAddr, logger.RequestLogger(webhook))
 }
 
-// функция webhook — обработчик HTTP-запроса
 func webhook(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		// разрешаем только POST-запросы
+		logger.Log.Debug("got request with bad method", zap.String("method", r.Method))
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
+	// десериализуем запрос в структуру модели
+	logger.Log.Debug("decoding request")
+	var req models.Request
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(&req); err != nil {
+		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	// проверяем, что пришёл запрос понятного типа
+	if req.Request.Type != models.TypeSimpleUtterance {
+		logger.Log.Debug("unsupported request type", zap.String("type", req.Request.Type))
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		return
+	}
+
+	// заполняем модель ответа
+	resp := models.Response{
+		Response: models.ResponsePayload{
+			Text: "Извините, я пока ничего не умею",
+		},
+		Version: "1.0",
+	}
+
 	// установим правильный заголовок для типа данных
 	w.Header().Set("Content-Type", "application/json")
-	// пока установим ответ-заглушку, без проверки ошибок
-	_, _ = w.Write([]byte(`
-      {
-        "response": {
-          "text": "Извините, я пока ничего не умею"
-        },
-        "version": "1.0"
-      }
-    `))
+
+	// сериализуем ответ сервера
+	enc := json.NewEncoder(w)
+	if err := enc.Encode(resp); err != nil {
+		logger.Log.Debug("error encoding response", zap.Error(err))
+		return
+	}
+	logger.Log.Debug("sending HTTP 200 response")
 }
