@@ -35,29 +35,6 @@ func run() error {
 	return http.ListenAndServe(flagRunAddr, logger.RequestLogger(webhook))
 }
 
-// // функция webhook — обработчик HTTP-запроса
-// func webhook(w http.ResponseWriter, r *http.Request) {
-// 	if r.Method != http.MethodPost {
-// 		// разрешаем только POST-запросы
-// 		logger.Log.Debug("got request with bad method", zap.String("method", r.Method))
-// 		w.WriteHeader(http.StatusMethodNotAllowed)
-// 		return
-// 	}
-
-// 	// установим правильный заголовок для типа данных
-// 	w.Header().Set("Content-Type", "application/json")
-// 	// пока установим ответ-заглушку, без проверки ошибок
-// 	_, _ = w.Write([]byte(`
-//       {
-//         "response": {
-//           "text": "Извините, я пока ничего не умею"
-//         },
-//         "version": "1.0"
-//       }
-//     `))
-// 	logger.Log.Debug("sending HTTP 200 response")
-// }
-
 func webhook(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		// разрешаем только POST-запросы
